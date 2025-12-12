@@ -2,7 +2,7 @@
 
 /**
  * SIC/XE Assembler Simulator Page
- * 4-panel layout: Editor | Intermediate Tables | Object Program | Memory View
+ * Resizable panels: Editor | Intermediate Tables | Object Program | Memory View
  */
 
 import { AssemblyEditor } from './components/Editor';
@@ -12,6 +12,11 @@ import { ObjectProgramDisplay } from './components/ObjectProgram';
 import { MemoryView } from './components/MemoryView';
 import { InstructionBreakdown } from './components/InstructionBreakdown';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable';
 import { useAssemblerStore } from './lib/store';
 import { Badge } from '@/components/ui/badge';
 
@@ -35,56 +40,67 @@ export default function AssemblerPage() {
         )}
       </header>
 
-      {/* Main Content - 4 panels */}
-      <main className="flex-1 grid grid-cols-2 gap-2 p-2 overflow-hidden">
-        {/* Left Column: Editor and Instruction Breakdown */}
-        <div className="flex flex-col gap-2 overflow-hidden">
-          {/* Editor Panel */}
-          <div className="flex-2 min-h-0">
-            <AssemblyEditor />
-          </div>
+      {/* Main Content - Resizable Panels */}
+      <main className="flex-1 overflow-hidden p-2">
+        <ResizablePanelGroup direction="horizontal" className="h-full rounded-lg">
+          {/* Left Column: Editor and Instruction Breakdown */}
+          <ResizablePanel defaultSize={50} minSize={25}>
+            <ResizablePanelGroup direction="vertical">
+              {/* Editor Panel */}
+              <ResizablePanel defaultSize={65} minSize={20}>
+                <div className="h-full p-1">
+                  <AssemblyEditor />
+                </div>
+              </ResizablePanel>
 
-          {/* Instruction Breakdown Panel */}
-          <div className="flex-1 min-h-0 overflow-auto">
-            <InstructionBreakdown />
-          </div>
-        </div>
+              <ResizableHandle withHandle />
 
-        {/* Right Column: Intermediate Tables and Memory */}
-        <div className="flex flex-col gap-2 overflow-hidden">
-          {/* Intermediate Tables Panel */}
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <Tabs defaultValue="pass1" className="h-full flex flex-col">
-              <TabsList className="grid grid-cols-4 shrink-0">
-                <TabsTrigger value="pass1">Pass 1</TabsTrigger>
-                <TabsTrigger value="pass2">Pass 2</TabsTrigger>
-                <TabsTrigger value="object">Object</TabsTrigger>
-                <TabsTrigger value="memory">Memory</TabsTrigger>
-              </TabsList>
-              <div className="flex-1 overflow-hidden mt-2">
-                <TabsContent value="pass1" className="h-full m-0 overflow-auto">
-                  <Pass1Table />
-                </TabsContent>
-                <TabsContent value="pass2" className="h-full m-0 overflow-auto">
-                  <Pass2Table />
-                </TabsContent>
-                <TabsContent value="object" className="h-full m-0 overflow-auto">
-                  <ObjectProgramDisplay />
-                </TabsContent>
-                <TabsContent value="memory" className="h-full m-0 overflow-auto">
-                  <MemoryView />
-                </TabsContent>
-              </div>
-            </Tabs>
-          </div>
-        </div>
+              {/* Instruction Breakdown Panel */}
+              <ResizablePanel defaultSize={35} minSize={15}>
+                <div className="h-full p-1 overflow-auto">
+                  <InstructionBreakdown />
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* Right Column: Results (Pass1, Pass2, Object, Memory) */}
+          <ResizablePanel defaultSize={50} minSize={25}>
+            <div className="h-full p-1">
+              <Tabs defaultValue="pass1" className="h-full flex flex-col">
+                <TabsList className="grid grid-cols-4 shrink-0">
+                  <TabsTrigger value="pass1">Pass 1</TabsTrigger>
+                  <TabsTrigger value="pass2">Pass 2</TabsTrigger>
+                  <TabsTrigger value="object">Object</TabsTrigger>
+                  <TabsTrigger value="memory">Memory</TabsTrigger>
+                </TabsList>
+                <div className="flex-1 overflow-hidden mt-2">
+                  <TabsContent value="pass1" className="h-full m-0 overflow-auto">
+                    <Pass1Table />
+                  </TabsContent>
+                  <TabsContent value="pass2" className="h-full m-0 overflow-auto">
+                    <Pass2Table />
+                  </TabsContent>
+                  <TabsContent value="object" className="h-full m-0 overflow-auto">
+                    <ObjectProgramDisplay />
+                  </TabsContent>
+                  <TabsContent value="memory" className="h-full m-0 overflow-auto">
+                    <MemoryView />
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </main>
 
       {/* Footer */}
       <footer className="border-t px-4 py-1 text-xs text-muted-foreground bg-card">
         <div className="flex items-center justify-between">
           <span>SIC/XE Two-Pass Assembler with PC/BASE-relative addressing</span>
-          <span>Click on table rows to see instruction breakdown</span>
+          <span>Drag the handles to resize panels</span>
         </div>
       </footer>
     </div>
