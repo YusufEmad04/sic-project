@@ -11,6 +11,11 @@ import { useAssemblerStore } from '../lib/store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -26,16 +31,16 @@ const ADDRESS_COLUMN_WIDTH = 60;
 function getByteColor(type: MemoryByteType): string {
   switch (type) {
     case 'code':
-      return 'bg-blue-500/30 hover:bg-blue-500/50 text-blue-200';
+      return 'bg-blue-500/30 hover:bg-blue-500/50 text-blue-100 dark:text-blue-200';
     case 'data':
-      return 'bg-green-500/30 hover:bg-green-500/50 text-green-200';
+      return 'bg-green-500/30 hover:bg-green-500/50 text-green-100 dark:text-green-200';
     case 'reserved':
-      return 'bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-200';
+      return 'bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-100 dark:text-yellow-200';
     case 'modified':
-      return 'bg-purple-500/30 hover:bg-purple-500/50 text-purple-200';
+      return 'bg-purple-500/30 hover:bg-purple-500/50 text-purple-100 dark:text-purple-200';
     case 'empty':
     default:
-      return 'bg-muted/30 hover:bg-muted/50 text-muted-foreground';
+      return 'bg-muted/30 hover:bg-muted/50 text-foreground';
   }
 }
 
@@ -92,21 +97,21 @@ function CellComponent({
             {formatByteHex(metadata.value)}
           </div>
         </TooltipTrigger>
-        <TooltipContent side="top" className="font-mono text-xs">
+        <TooltipContent side="top" className="font-mono text-xs bg-popover text-popover-foreground">
           <div className="space-y-1">
-            <div>Address: <span className="text-primary">{formatAddress(address, 6)}</span></div>
-            <div>Hex: <span className="text-primary">{formatByteHex(metadata.value)}</span></div>
-            <div>Decimal: <span className="text-primary">{metadata.value}</span></div>
-            <div>ASCII: <span className="text-primary">{formatByteAscii(metadata.value)}</span></div>
-            <div>Type: <span className="text-primary">{metadata.type}</span></div>
+            <div>Address: <span className="text-blue-400 font-semibold">{formatAddress(address, 6)}</span></div>
+            <div>Hex: <span className="text-green-400 font-semibold">{formatByteHex(metadata.value)}</span></div>
+            <div>Decimal: <span className="text-yellow-400 font-semibold">{metadata.value}</span></div>
+            <div>ASCII: <span className="text-purple-400 font-semibold">{formatByteAscii(metadata.value)}</span></div>
+            <div>Type: <span className="text-cyan-400 font-semibold">{metadata.type}</span></div>
             {metadata.sourceLineNumber && (
-              <div>Source Line: <span className="text-primary">{metadata.sourceLineNumber}</span></div>
+              <div>Source Line: <span className="text-orange-400 font-semibold">{metadata.sourceLineNumber}</span></div>
             )}
             {metadata.instruction && (
-              <div>Instruction: <span className="text-primary">{metadata.instruction}</span></div>
+              <div>Instruction: <span className="text-pink-400 font-semibold">{metadata.instruction}</span></div>
             )}
             {metadata.label && (
-              <div>Label: <span className="text-primary">{metadata.label}</span></div>
+              <div>Label: <span className="text-indigo-400 font-semibold">{metadata.label}</span></div>
             )}
           </div>
         </TooltipContent>
@@ -189,51 +194,63 @@ export function MemoryView() {
         </div>
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-4">
-        {/* Legend */}
-        <div className="flex gap-4 mb-3 text-xs">
-          <div className="flex items-center gap-1">
-            <div className="w-4 h-4 bg-blue-500/30 rounded" />
-            <span>Code</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-4 h-4 bg-green-500/30 rounded" />
-            <span>Data</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-4 h-4 bg-purple-500/30 rounded" />
-            <span>Modified</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-4 h-4 bg-muted/30 rounded" />
-            <span>Empty</span>
-          </div>
-        </div>
+        <ResizablePanelGroup direction="vertical">
+          {/* Memory Grid Panel */}
+          <ResizablePanel defaultSize={70} minSize={40}>
+            <div className="h-full flex flex-col">
+              {/* Legend */}
+              <div className="flex gap-4 mb-3 text-xs">
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-blue-500/30 rounded" />
+                  <span>Code</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-green-500/30 rounded" />
+                  <span>Data</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-purple-500/30 rounded" />
+                  <span>Modified</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-4 h-4 bg-muted/30 rounded" />
+                  <span>Empty</span>
+                </div>
+              </div>
 
-        {/* Memory Grid */}
-        <div className="border rounded-md overflow-hidden bg-background">
-          <Grid
-            cellComponent={CellComponent}
-            cellProps={{
-              memory,
-              visibleStart: visibleRange.start,
-              selectedMemoryAddress,
-              selectMemoryAddress
-            }}
-            columnCount={BYTES_PER_ROW + 1}
-            columnWidth={(index: number) => index === 0 ? ADDRESS_COLUMN_WIDTH : CELL_SIZE}
-            rowCount={displayRows}
-            rowHeight={CELL_SIZE}
-            style={{ height: 400, width: ADDRESS_COLUMN_WIDTH + (BYTES_PER_ROW * CELL_SIZE) + 20 }}
-          />
-        </div>
+              {/* Memory Grid */}
+              <div className="border rounded-md overflow-hidden bg-background flex-1">
+                <Grid
+                  cellComponent={CellComponent}
+                  cellProps={{
+                    memory,
+                    visibleStart: visibleRange.start,
+                    selectedMemoryAddress,
+                    selectMemoryAddress
+                  }}
+                  columnCount={BYTES_PER_ROW + 1}
+                  columnWidth={(index: number) => index === 0 ? ADDRESS_COLUMN_WIDTH : CELL_SIZE}
+                  rowCount={displayRows}
+                  rowHeight={CELL_SIZE}
+                  style={{ height: '100%', width: ADDRESS_COLUMN_WIDTH + (BYTES_PER_ROW * CELL_SIZE) + 20 }}
+                />
+              </div>
+            </div>
+          </ResizablePanel>
 
-        {/* Selected byte details */}
-        {selectedMemoryAddress !== null && (
-          <div className="mt-3 p-3 bg-muted rounded-md">
-            <h4 className="text-sm font-medium mb-2">Selected Byte</h4>
-            <SelectedByteDetails address={selectedMemoryAddress} />
-          </div>
-        )}
+          {/* Selected byte details panel */}
+          {selectedMemoryAddress !== null && (
+            <>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={30} minSize={15}>
+                <div className="p-3 bg-muted/50 rounded-md h-full overflow-auto">
+                  <h4 className="text-sm font-semibold mb-3 text-foreground">Selected Byte Details</h4>
+                  <SelectedByteDetails address={selectedMemoryAddress} />
+                </div>
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
       </CardContent>
     </Card>
   );
@@ -247,13 +264,19 @@ function SelectedByteDetails({ address }: { address: number }) {
   const metadata = getByteMetadata(memory, address);
 
   return (
-    <div className="grid grid-cols-2 gap-2 text-sm font-mono">
-      <div>Address: <span className="text-primary">{formatAddress(address, 6)}</span></div>
-      <div>Value: <span className="text-primary">{formatByteHex(metadata.value)} ({metadata.value})</span></div>
-      <div>ASCII: <span className="text-primary">{formatByteAscii(metadata.value)}</span></div>
-      <div>Type: <span className="text-primary">{metadata.type}</span></div>
+    <div className="grid grid-cols-2 gap-3 text-sm font-mono">
+      <div className="text-foreground">Address: <span className="text-blue-500 dark:text-blue-400 font-semibold">{formatAddress(address, 6)}</span></div>
+      <div className="text-foreground">Value: <span className="text-green-500 dark:text-green-400 font-semibold">{formatByteHex(metadata.value)} ({metadata.value})</span></div>
+      <div className="text-foreground">ASCII: <span className="text-purple-500 dark:text-purple-400 font-semibold">{formatByteAscii(metadata.value)}</span></div>
+      <div className="text-foreground">Type: <span className="text-cyan-500 dark:text-cyan-400 font-semibold">{metadata.type}</span></div>
+      {metadata.sourceLineNumber && (
+        <div className="col-span-2 text-foreground">Source Line: <span className="text-orange-500 dark:text-orange-400 font-semibold">{metadata.sourceLineNumber}</span></div>
+      )}
       {metadata.instruction && (
-        <div className="col-span-2">Instruction: <span className="text-primary">{metadata.instruction}</span></div>
+        <div className="col-span-2 text-foreground">Instruction: <span className="text-pink-500 dark:text-pink-400 font-semibold">{metadata.instruction}</span></div>
+      )}
+      {metadata.label && (
+        <div className="col-span-2 text-foreground">Label: <span className="text-indigo-500 dark:text-indigo-400 font-semibold">{metadata.label}</span></div>
       )}
     </div>
   );

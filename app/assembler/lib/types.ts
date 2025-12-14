@@ -317,13 +317,46 @@ export interface Memory {
 // ============================================================================
 
 /**
- * Assembler error
+ * Phase names for error tracking
+ */
+export type AssemblerPhaseType = 'lexer' | 'parser' | 'pass1' | 'pass2' | 'objectgen' | 'loader';
+
+/**
+ * Human-readable phase names
+ */
+export const PHASE_NAMES: Record<AssemblerPhaseType, string> = {
+  lexer: 'Lexer (Tokenization)',
+  parser: 'Parser (Syntax Check)',
+  pass1: 'Pass 1 (Symbol Table)',
+  pass2: 'Pass 2 (Object Code)',
+  objectgen: 'Object Program Generation',
+  loader: 'Memory Loader'
+};
+
+/**
+ * Assembler error with detailed context
  */
 export interface AssemblerError {
+  /** Line number where error occurred (0 for general errors) */
   lineNumber: number;
+  /** Error message describing the problem */
   message: string;
+  /** Error severity */
   type: 'error' | 'warning';
-  phase: 'lexer' | 'parser' | 'pass1' | 'pass2' | 'loader';
+  /** Which phase produced this error */
+  phase: AssemblerPhaseType;
+  /** The raw source line content (for context) */
+  sourceLine?: string;
+  /** Label on this line (if any) */
+  label?: string;
+  /** Opcode on this line (if any) */
+  opcode?: string;
+  /** Operand on this line (if any) */
+  operand?: string;
+  /** Additional details or suggestions for fixing */
+  details?: string;
+  /** Location counter at time of error (hex) */
+  locctr?: string;
 }
 
 // ============================================================================

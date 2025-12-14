@@ -470,7 +470,7 @@ export function AssemblyEditor() {
                 <ChevronDown className="w-4 h-4 ml-1" />
               </Button>
               {showExamples && (
-                <div className="absolute right-0 top-full mt-1 w-56 bg-popover border rounded-md shadow-lg z-50">
+                <div className="absolute right-0 top-full mt-1 w-56 bg-popover border rounded-md shadow-lg z-50 max-h-80 overflow-y-auto">
                   {Object.entries(examplePrograms).map(([key, program]) => (
                     <button
                       key={key}

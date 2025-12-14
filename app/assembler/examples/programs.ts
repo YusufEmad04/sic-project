@@ -228,8 +228,8 @@ RESULT  RESW    1         . Final result (should be 20)
         STCH    OUTPUT+4
         RSUB
 . Data constants
-DECNUM  WORD    1000      . Decimal constant
-HEXNUM  BYTE    X'000100' . Hex constant (256 decimal)
+DECNUM  WORD    1000      . Decimal constant (3E8 hex)
+HEXNUM  WORD    256       . 256 decimal (100 hex)
 HELLO   BYTE    C'HELLO'  . Character string (5 bytes)
 BYTE3   BYTE    X'F1'     . Single hex byte
 RESULT  RESW    1

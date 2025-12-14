@@ -1,0 +1,22 @@
+COPY     START   1000
+
+         CLEAR   X            ; Format 2
+         LDA     #5           ; Immediate addressing
+         STA     COUNT        ; Direct addressing
+         LDX     TABLE        ; Load index
+         ADD     TABLE,X      ; Indexed addressing
+         +JSUB   SUBR         ; Extended (Format 4)
+         COMP    COUNT        ; Compare
+         JEQ     DONE         ; Conditional jump
+         J       COPY         ; Unconditional jump
+
+DONE     RSUB                 ; Return
+
+COUNT    WORD    0
+TABLE    RESW    3
+
+SUBR     ADDR    A,X           ; Format 2
+         SHIFTL  A,1           ; Format 2
+         RSUB
+
+         END     COPY

@@ -27,6 +27,28 @@ import {
 } from './lexer';
 
 /**
+ * Helper to create a detailed error for Pass 2
+ */
+function createPass2Error(
+  entry: IntermediateEntry,
+  message: string,
+  details?: string
+): AssemblerError {
+  return {
+    lineNumber: entry.line.lineNumber,
+    message,
+    type: 'error',
+    phase: 'pass2',
+    sourceLine: (entry.line as { rawLine?: string }).rawLine,
+    label: entry.line.label,
+    opcode: entry.line.opcode,
+    operand: entry.line.operand,
+    locctr: entry.locctr !== null ? entry.locctr.toString(16).toUpperCase().padStart(4, '0') : undefined,
+    details
+  };
+}
+
+/**
  * Execute Pass 2 of the assembler
  *
  * Tasks:
@@ -75,12 +97,11 @@ export function executePass2(pass1Result: Pass1Result): Pass2Result {
       }
 
       if (result.error) {
-        errors.push({
-          lineNumber: line.lineNumber,
-          message: result.error,
-          type: 'error',
-          phase: 'pass2'
-        });
+        errors.push(createPass2Error(
+          entry,
+          result.error,
+          'This error occurred while processing a directive. Check the operand syntax and ensure all referenced symbols are defined.'
+        ));
       }
 
       entries.push(result.entry);
@@ -96,12 +117,11 @@ export function executePass2(pass1Result: Pass1Result): Pass2Result {
     );
 
     if (result.error) {
-      errors.push({
-        lineNumber: line.lineNumber,
-        message: result.error,
-        type: 'error',
-        phase: 'pass2'
-      });
+      errors.push(createPass2Error(
+        entry,
+        result.error,
+        result.errorDetails || 'This error occurred during object code generation. Check the instruction format and operand addressing.'
+      ));
     }
 
     entries.push(result.entry);
@@ -225,6 +245,7 @@ function generateByteCode(operand: string | undefined): string | null {
 
 /**
  * Generate object code for WORD directive
+ * WORD can contain numbers, symbols, or expressions
  */
 function generateWordCode(
   operand: string | undefined,
@@ -234,34 +255,31 @@ function generateWordCode(
     return { code: null, needsModification: false, error: 'WORD requires an operand' };
   }
 
-  // Check if it's a symbol
-  const upperOperand = operand.toUpperCase();
-  if (upperOperand in symbolTable) {
-    const value = symbolTable[upperOperand];
-    return {
-      code: value.toString(16).toUpperCase().padStart(6, '0'),
-      needsModification: true // Symbol references need modification for relocation
-    };
-  }
+  // Try to evaluate as an expression (handles symbols, numbers, and expressions like SYMBOL+5)
+  const exprValue = evaluateOperandExpression(operand, symbolTable);
 
-  // Try as a numeric value
-  const numValue = parseNumericOperand(operand);
-  if (numValue !== null) {
+  if (exprValue !== null) {
     // Handle negative numbers with two's complement
-    let value = numValue;
+    let value = exprValue;
     if (value < 0) {
       value = (1 << 24) + value; // 24-bit two's complement
     }
+
+    // Check if it's a simple symbol reference (needs modification for relocation)
+    const upperOperand = operand.toUpperCase();
+    const isSimpleSymbol = upperOperand in symbolTable &&
+      !operand.includes('+') && !operand.includes('-');
+
     return {
       code: (value & 0xFFFFFF).toString(16).toUpperCase().padStart(6, '0'),
-      needsModification: false
+      needsModification: isSimpleSymbol
     };
   }
 
   return {
     code: null,
     needsModification: false,
-    error: `Invalid WORD operand: "${operand}"`
+    error: `Cannot evaluate WORD operand: "${operand}" - undefined symbol or invalid expression`
   };
 }
 
@@ -281,7 +299,7 @@ function generateInstructionCode(
   entry: IntermediateEntry,
   symbolTable: SymbolTable,
   baseRegister: number | null
-): { entry: Pass2Entry; error?: string } {
+): { entry: Pass2Entry; error?: string; errorDetails?: string } {
   const isExtended = line.isExtended || line.opcode.startsWith('+');
   const cleanOpcode = line.opcode.toUpperCase().replace(/^\+/, '');
   const opcodeEntry = getOpcodeEntry(cleanOpcode);
@@ -289,7 +307,8 @@ function generateInstructionCode(
   if (!opcodeEntry) {
     return {
       entry: createErrorEntry(line),
-      error: `Unknown opcode: "${cleanOpcode}"`
+      error: `Unknown opcode: "${cleanOpcode}"`,
+      errorDetails: `The instruction "${cleanOpcode}" is not recognized. Check spelling or ensure it's a valid SIC/XE instruction.`
     };
   }
 
@@ -307,7 +326,8 @@ function generateInstructionCode(
     default:
       return {
         entry: createErrorEntry(line),
-        error: `Invalid format: ${format}`
+        error: `Invalid format: ${format}`,
+        errorDetails: 'Internal error: instruction format must be 1, 2, 3, or 4.'
       };
   }
 }
@@ -631,26 +651,108 @@ function resolveAddressing(
       x = 1;
     }
 
-    // Look up in symbol table
-    const upperOperand = cleanOperand.toUpperCase();
-    if (upperOperand in symbolTable) {
-      targetAddress = symbolTable[upperOperand];
-    } else {
-      // Try as numeric value
-      const numValue = parseNumericOperand(cleanOperand);
-      if (numValue !== null) {
-        targetAddress = numValue;
-      } else if (addressingMode !== 'immediate') {
-        // Only error if not immediate (immediate can have forward references)
-        return {
-          n, i, x, addressingMode, targetAddress: null,
-          error: `Undefined symbol: "${cleanOperand}"`
-        };
-      }
+    // Try to evaluate the operand - could be a symbol, number, or expression
+    targetAddress = evaluateOperandExpression(cleanOperand, symbolTable);
+
+    if (targetAddress === null && addressingMode !== 'immediate') {
+      // Only error if not immediate (immediate can have forward references)
+      return {
+        n, i, x, addressingMode, targetAddress: null,
+        error: `Cannot resolve operand: "${cleanOperand}" - undefined symbol or invalid expression`
+      };
     }
   }
 
   return { n, i, x, addressingMode, targetAddress };
+}
+
+/**
+ * Evaluate an operand expression that may contain symbols and arithmetic
+ * Supports expressions like: SYMBOL, SYMBOL+5, SYMBOL-3, 100, etc.
+ */
+function evaluateOperandExpression(
+  operand: string,
+  symbolTable: SymbolTable
+): number | null {
+  if (!operand || operand.trim().length === 0) {
+    return null;
+  }
+
+  const expr = operand.trim().toUpperCase();
+
+  // Try as a simple symbol lookup first
+  if (expr in symbolTable) {
+    return symbolTable[expr];
+  }
+
+  // Try as a numeric value
+  const numValue = parseNumericOperand(operand);
+  if (numValue !== null) {
+    return numValue;
+  }
+
+  // Handle expressions with + and -
+  // Split by + and - while keeping track of operators
+  const tokens: string[] = [];
+  const operators: string[] = [];
+  let current = '';
+
+  for (let i = 0; i < expr.length; i++) {
+    const char = expr[i];
+
+    if (char === '+' || char === '-') {
+      if (current.trim()) {
+        tokens.push(current.trim());
+      }
+      operators.push(char);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  if (current.trim()) {
+    tokens.push(current.trim());
+  }
+
+  // If we only have one token and no operators, we couldn't resolve it
+  if (tokens.length === 1 && operators.length === 0) {
+    return null;
+  }
+
+  // Evaluate each token
+  const values: number[] = [];
+
+  for (const token of tokens) {
+    if (token in symbolTable) {
+      values.push(symbolTable[token]);
+    } else {
+      const numVal = parseNumericOperand(token);
+      if (numVal !== null) {
+        values.push(numVal);
+      } else {
+        // Undefined symbol in expression
+        return null;
+      }
+    }
+  }
+
+  // Apply operators
+  if (values.length === 0) {
+    return null;
+  }
+
+  let result = values[0];
+
+  for (let j = 0; j < operators.length && j + 1 < values.length; j++) {
+    if (operators[j] === '+') {
+      result += values[j + 1];
+    } else if (operators[j] === '-') {
+      result -= values[j + 1];
+    }
+  }
+
+  return result;
 }
 
 /**

@@ -113,19 +113,20 @@ function validateDirective(
       if (!operand) {
         errors.push('BYTE requires an operand');
       } else if (!isValidByteConstant(operand)) {
-        errors.push(`Invalid BYTE constant: "${operand}". Use C'...' for characters or X'...' for hex.`);
+        errors.push(`Invalid BYTE constant: "${operand}". Use C'...' for characters or X'...' for hex (even number of digits).`);
       }
       break;
 
     case 'WORD':
       if (!operand) {
         errors.push('WORD requires an operand');
-      } else if (!isValidDecimalNumber(operand) && !isValidHexNumber(operand)) {
-        // Could be a symbol, which is okay
-        if (!isValidLabel(operand)) {
-          errors.push(`Invalid WORD value: "${operand}". Use a number or valid symbol.`);
-        }
       }
+      // WORD can contain:
+      // - A decimal number (positive or negative)
+      // - A hexadecimal number
+      // - A symbol name
+      // - An expression like SYMBOL+5 or SYMBOL-3
+      // We'll validate the actual value in Pass 1/2
       break;
 
     case 'RESB':
@@ -175,6 +176,38 @@ function validateDirective(
       if (operand) {
         warnings.push('LTORG does not take an operand, ignoring');
       }
+      break;
+
+    case 'USE':
+      // USE directive switches to a named program block
+      // Operand is optional (empty means default block)
+      break;
+
+    case 'CSECT':
+      // CSECT defines a new control section
+      // Label is required (becomes the control section name)
+      if (!line.label) {
+        errors.push('CSECT requires a label (control section name)');
+      }
+      break;
+
+    case 'EXTDEF':
+      // EXTDEF lists external symbols defined in this control section
+      if (!operand) {
+        errors.push('EXTDEF requires a list of symbols to export');
+      }
+      break;
+
+    case 'EXTREF':
+      // EXTREF lists external symbols referenced from other control sections
+      if (!operand) {
+        errors.push('EXTREF requires a list of external symbols to import');
+      }
+      break;
+
+    default:
+      // Unknown directive - should not happen if isDirective() is correct
+      warnings.push(`Unknown directive: "${directive}"`);
       break;
   }
 }

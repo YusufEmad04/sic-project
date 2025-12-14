@@ -11,6 +11,7 @@ import { Pass2Table } from './components/Pass2Table';
 import { ObjectProgramDisplay } from './components/ObjectProgram';
 import { MemoryView } from './components/MemoryView';
 import { InstructionBreakdown } from './components/InstructionBreakdown';
+import { ErrorPanel } from './components/ErrorPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ResizableHandle,
@@ -70,11 +71,19 @@ export default function AssemblerPage() {
           <ResizablePanel defaultSize={50} minSize={25}>
             <div className="h-full p-1">
               <Tabs defaultValue="pass1" className="h-full flex flex-col">
-                <TabsList className="grid grid-cols-4 shrink-0">
+                <TabsList className="grid grid-cols-5 shrink-0">
                   <TabsTrigger value="pass1">Pass 1</TabsTrigger>
                   <TabsTrigger value="pass2">Pass 2</TabsTrigger>
                   <TabsTrigger value="object">Object</TabsTrigger>
                   <TabsTrigger value="memory">Memory</TabsTrigger>
+                  <TabsTrigger value="errors" className="relative">
+                    Errors
+                    {errors.length > 0 && (
+                      <span className="ml-1 bg-destructive text-destructive-foreground text-xs rounded-full px-1.5 min-w-[1.25rem] inline-flex items-center justify-center">
+                        {errors.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
                 </TabsList>
                 <div className="flex-1 overflow-hidden mt-2">
                   <TabsContent value="pass1" className="h-full m-0 overflow-auto">
@@ -88,6 +97,9 @@ export default function AssemblerPage() {
                   </TabsContent>
                   <TabsContent value="memory" className="h-full m-0 overflow-auto">
                     <MemoryView />
+                  </TabsContent>
+                  <TabsContent value="errors" className="h-full m-0 overflow-auto">
+                    <ErrorPanel />
                   </TabsContent>
                 </div>
               </Tabs>
